@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub ZIP Uploader & Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e6e6e6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(30, 30, 46, 0.8);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #b8b8b8;
+            font-size: 1.1rem;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #2d3746;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: rgba(20, 20, 32, 0.8);
+            color: #e6e6e6;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 20px rgba(74, 108, 247, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-label {
+            display: block;
+            padding: 20px;
+            border: 3px dashed #4a6cf7;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(74, 108, 247, 0.05);
+        }
+
+        .file-label:hover {
+            border-color: #8a4fff;
+            background: rgba(138, 79, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #4a6cf7 0%, #8a4fff 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(74, 108, 247, 0.3);
+        }
+
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(74, 108, 247, 0.5);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #2d3746;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a6cf7, #8a4fff);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+            border-left: 4px solid #4caf50;
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            border-left: 4px solid #f44336;
+        }
+
+        .status.info {
+            background: rgba(33, 150, 243, 0.1);
+            color: #2196f3;
+            border-left: 4px solid #2196f3;
+        }
+
+        .help-text {
+            font-size: 14px;
+            color: #888;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .github-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        /* Loading Animation */
+        .loader {
+            display: none;
+            width: 48px;
+            height: 48px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .loader:before {
+            content: '';
+            width: 48px;
+            height: 5px;
+            background: #4a6cf7;
+            opacity: 0.25;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            border-radius: 50%;
+            animation: shadow 0.5s linear infinite;
+        }
+
+        .loader:after {
+            content: '';
+            width: 100%;
+            height: 100%;
+            background: #4a6cf7;
+            animation: spin 0.5s linear infinite;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 4px;
+        }
+
+        @keyframes spin {
+            17% {
+                border-bottom-right-radius: 3px;
+            }
+            25% {
+                transform: translateY(9px) rotate(22.5deg);
+            }
+            50% {
+                transform: translateY(18px) scale(1, .9) rotate(45deg);
+                border-bottom-right-radius: 40px;
+            }
+            75% {
+                transform: translateY(9px) rotate(67.5deg);
+            }
+            100% {
+                transform: translateY(0) rotate(90deg);
+            }
+        }
+
+        @keyframes shadow {
+            0%, 100% {
+                transform: scale(1, 1);
+            }
+            50% {
+                transform: scale(1.2, 1);
+            }
+        }
+
+        /* Pulse animation for upload button */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .uploading {
+            animation: pulse 1s infinite;
+        }
+
+        /* File list animation */
+        .file-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .file-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            background: rgba(20, 20, 32, 0.5);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        .file-item:last-child {
+            margin-bottom: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-status {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(74, 108, 247, 0.2);
+            color: #4a6cf7;
+        }
+
+        .file-status.uploaded {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .file-status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        /* Glow effect for success */
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+            }
+            100% {
+                box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+            }
+        }
+
+        .glow-success {
+            animation: glow 2s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitHub ZIP Uploader
+        </h1>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="repoUrl">Repository URL</label>
+                <input type="text" id="repoUrl" placeholder="https://github.com/username/repository" required>
+                <div class="help-text">Enter the GitHub repository URL where you want to upload the files</div>
+            </div>
+
+            <div class="form-group">
+                <label for="token">GitHub Personal Access Token</label>
+                <input type="password" id="token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" required>
+                <div class="help-text">Create a token at: Settings → Developer settings → Personal access tokens → Fine-grained tokens</div>
+            </div>
+
+            <div class="form-group">
+                <label for="branch">Branch (optional)</label>
+                <input type="text" id="branch" placeholder="main" value="main">
+                <div class="help-text">Branch name where files will be uploaded (defaults to 'main')</div>
+            </div>
+
+            <div class="form-group">
+                <label>ZIP File</label>
+                <div class="file-upload">
+                    <input type="file" id="zipFile" accept=".zip" required class="file-input">
+                    <label for="zipFile" class="file-label">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
+                        <div>Click to select ZIP file or drag & drop here</div>
+                        <div class="file-info" id="fileInfo">No file selected</div>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="upload-btn" id="uploadBtn">
+                Upload & Extract to GitHub
+            </button>
+        </form>
+
+        <div class="loader" id="loader"></div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div style="text-align: center; margin-top: 10px;" id="progressText">0%</div>
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script>
+        const form = document.getElementById('uploadForm');
+        const zipFileInput = document.getElementById('zipFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const status = document.getElementById('status');
+        const loader = document.getElementById('loader');
+        const fileList = document.getElementById('fileList');
+
+        zipFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileInfo.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
+            } else {
+                fileInfo.textContent = 'No file selected';
+            }
+        });
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const repoUrl = document.getElementById('repoUrl').value.trim();
+            const token = document.getElementById('token').value.trim();
+            const branch = document.getElementById('branch').value.trim() || 'main';
+            const zipFile = zipFileInput.files[0];
+
+            if (!zipFile) {
+                showStatus('Please select a ZIP file', 'error');
+                return;
+            }
+
+            // Parse repository URL
+            const repoMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (!repoMatch) {
+                showStatus('Invalid GitHub repository URL', 'error');
+                return;
+            }
+
+            const [, owner, repo] = repoMatch;
+            const cleanRepo = repo.replace(/\.git$/, '');
+
+            try {
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = 'Processing...';
+                uploadBtn.classList.add('uploading');
+                progressContainer.style.display = 'block';
+                loader.style.display = 'block';
+                fileList.innerHTML = '';
+                fileList.style.display = 'none';
+                
+                showStatus('Reading ZIP file...', 'info');
+                updateProgress(10);
+
+                // Read and extract ZIP file
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(zipFile);
+                
+                showStatus('Extracting files from ZIP...', 'info');
+                updateProgress(30);
+
+                const files = [];
+                for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
+                    if (!zipEntry.dir) {
+                        const content = await zipEntry.async('base64');
+                        files.push({
+                            path: filename,
+                            content: content,
+                            encoding: 'base64'
+                        });
+                    }
+                }
+
+                showStatus(`Found ${files.length} files. Uploading to GitHub...`, 'info');
+                updateProgress(50);
+
+                // Show file list
+                fileList.style.display = 'block';
+                files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>${file.path}</span>
+                        <span class="file-status">Pending</span>
+                    `;
+                    fileItem.id = `file-${file.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                    fileList.appendChild(fileItem);
+                });
+
+                // Upload files to GitHub
+                let uploadedCount = 0;
+                for (const file of files) {
+                    try {
+                        await uploadFileToGitHub(owner, cleanRepo, branch, file.path, file.content, token);
+                        uploadedCount++;
+                        const progress = 50 + (uploadedCount / files.length) * 45;
+                        updateProgress(progress);
+                        showStatus(`Uploaded ${uploadedCount}/${files.length} files...`, 'info');
+                        
+                        // Update file status
+                        const fileItem = document.getElementById(`file-${file.path.replace(/[^a-zA-Z0-9]/g, '-')}`);
+                        if (fileItem) {
+                            fileItem.querySelector('.file-status').textContent = 'Uploaded';
+                            fileItem.querySelector('.file-status').className = 'file-status uploaded';
+                        }
+                    } catch (error) {
+                        // Update file status to error
+                        const fileItem = document.getElementById(`file-${file.path.replace(/[^a-zA-Z0-9]/g, '-')}`);
+                        if (fileItem) {
+                            fileItem.querySelector('.file-status').textContent = 'Error';
+                            fileItem.querySelector('.file-status').className = 'file-status error';
+                        }
+                        throw error;
+                    }
+                }
+
+                updateProgress(100);
+                showStatus(`Successfully uploaded and extracted ${files.length} files to ${repoUrl}`, 'success');
+                container.classList.add('glow-success');
+                setTimeout(() => container.classList.remove('glow-success'), 2000);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload & Extract to GitHub';
+                uploadBtn.classList.remove('uploading');
+                loader.style.display = 'none';
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    updateProgress(0);
+                }, 3000);
+            }
+        });
+
+        async function uploadFileToGitHub(owner, repo, branch, path, content, token) {
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+            
+            // Check if file already exists
+            let sha = null;
+            try {
+                const existingFile = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (existingFile.ok) {
+                    const existingData = await existingFile.json();
+                    sha = existingData.sha;
+                }
+            } catch (e) {
+                // File doesn't exist, which is fine
+            }
+
+            const payload = {
+                message: `Upload ${path} via ZIP extractor`,
+                content: content,
+                branch: branch
+            };
+
+            if (sha) {
+                payload.sha = sha;
+            }
+
+            const response = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(`Failed to upload ${path}: ${error.message || response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `${Math.round(percent)}%`;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Drag and drop functionality
+        const fileLabel = document.querySelector('.file-label');
+        const container = document.querySelector('.container');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            fileLabel.style.borderColor = '#8a4fff';
+            fileLabel.style.background = 'rgba(138, 79, 255, 0.15)';
+        }
+
+        function unhighlight(e) {
+            fileLabel.style.borderColor = '#4a6cf7';
+            fileLabel.style.background = 'rgba(74, 108, 247, 0.05)';
+        }
+
+        fileLabel.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0 && files[0].type === 'application/zip') {
+                zipFileInput.files = files;
+                const event = new Event('change', { bubbles: true });
+                zipFileInput.dispatchEvent(event);
+            }
+        }
+    </script>
+</body>
+</html>
